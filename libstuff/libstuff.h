@@ -41,6 +41,7 @@ using namespace std;
 // Custom libraries.
 #include <pcrecpp.h> // sudo apt-get install libpcre++-dev
 
+#include <mbedtls/net.h>
 // Initialize libstuff on every thread before calling any of its functions
 void SInitialize(string threadName = "", const char* processName = 0);
 
@@ -682,6 +683,7 @@ void SFDset(fd_map& fdm, int socket, short evts);
 bool SFDAnySet(fd_map& fdm, int socket, short evts);
 
 // Socket helpers
+void S_TLSError(int val, char* error_buf);
 int S_socket(const string& host, bool isTCP, bool isPort, bool isBlocking);
 int S_accept(int port, sockaddr_in& fromAddr, bool isBlocking);
 ssize_t S_recvfrom(int s, char* recvBuffer, int recvBufferSize, sockaddr_in& fromAddr);

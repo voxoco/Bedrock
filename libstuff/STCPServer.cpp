@@ -1,4 +1,5 @@
 #include "libstuff.h"
+#include <mbedtls/certs.h>
 
 STCPServer::STCPServer(const string& host) {
     // Initialize
@@ -55,8 +56,74 @@ STCPManager::Socket* STCPServer::acceptSocket(Port*& portOut) {
     lock_guard <decltype(portListMutex)> lock(portListMutex);
     for (Port& port : portList) {
         // Try to accept on the port and wrap in a socket
+        
         sockaddr_in addr;
-        int s = S_accept(port.s, addr, false);
+        SDEBUG("Port List addr " << addr << " port " << port.host);
+
+        string domain;
+        uint16_t listenport = 0;
+        if (!SParseHost(port.host, domain, listenport)) {
+            STHROW("invalid host: " + port.host);
+        }
+        // TO DO resolve domain names
+
+        //unsigned int ip = inet_addr(domain.c_str());
+
+        // int ret, len;
+        mbedtls_net_context listen_fd, client_fd;
+        // unsigned char buf[1024];
+        const char *pers = "ssl_server";
+
+        mbedtls_entropy_context entropy;
+        mbedtls_ctr_drbg_context ctr_drbg;
+        mbedtls_ssl_context ssl;
+        mbedtls_ssl_config conf;
+        mbedtls_x509_crt srvcert;
+        mbedtls_pk_context pkey;
+
+
+        mbedtls_net_init( &listen_fd );
+        mbedtls_net_init( &client_fd );
+        mbedtls_ssl_init( &ssl );
+        mbedtls_ssl_config_init( &conf );
+
+        mbedtls_x509_crt_init( &srvcert );
+        mbedtls_pk_init( &pkey );
+        mbedtls_entropy_init( &entropy );
+        mbedtls_ctr_drbg_init( &ctr_drbg );
+
+        mbedtls_x509_crt_parse( &srvcert, (const unsigned char *) mbedtls_test_srv_crt,
+                          mbedtls_test_srv_crt_len );
+        mbedtls_x509_crt_parse( &srvcert, (const unsigned char *) mbedtls_test_cas_pem,
+                          mbedtls_test_cas_pem_len );
+        mbedtls_pk_parse_key( &pkey, (const unsigned char *) mbedtls_test_srv_key,
+                         mbedtls_test_srv_key_len, NULL, 0 );
+
+        mbedtls_net_bind( &listen_fd, NULL, std::to_string(listenport).c_str(), MBEDTLS_NET_PROTO_TCP );
+        mbedtls_ctr_drbg_seed( &ctr_drbg, mbedtls_entropy_func, &entropy,
+                               (const unsigned char *) pers,
+                               strlen( pers ) );
+        mbedtls_ssl_config_defaults( &conf,
+                    MBEDTLS_SSL_IS_SERVER,
+                    MBEDTLS_SSL_TRANSPORT_STREAM,
+                    MBEDTLS_SSL_PRESET_DEFAULT );
+        mbedtls_ssl_conf_rng( &conf, mbedtls_ctr_drbg_random, &ctr_drbg );  
+
+        mbedtls_ssl_conf_ca_chain( &conf, srvcert.next, NULL );
+        mbedtls_ssl_conf_own_cert( &conf, &srvcert, &pkey );
+        mbedtls_ssl_setup( &ssl, &conf );
+
+        int s = mbedtls_net_accept( &listen_fd, &client_fd,
+                                    NULL, 0, NULL );
+        mbedtls_ssl_set_bio( &ssl, &client_fd, mbedtls_net_send, mbedtls_net_recv, NULL );
+        mbedtls_ssl_handshake( &ssl );
+
+        
+
+        
+
+
+        // int s = S_accept(port.s, addr, false);
         if (s > 0) {
             // Received a socket, wrap
             SDEBUG("Accepting socket from '" << addr << "' on port '" << port.host << "'");

@@ -83,6 +83,7 @@ BedrockClusterTester::BedrockClusterTester(BedrockClusterTester::ClusterSize siz
 
         for (auto& a : _args) {
             args[a.first] = a.second;
+            SHMMM("Server parms " << a.second);
         }
         _cluster.emplace_back(threadID, args, queries, false);
     }

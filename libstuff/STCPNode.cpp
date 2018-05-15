@@ -1,5 +1,8 @@
+
 #include "libstuff.h"
 #include <execinfo.h> // for backtrace
+#include <mbedtls/certs.h>
+
 #undef SLOGPREFIX
 #define SLOGPREFIX "{" << name << "} "
 
@@ -233,19 +236,40 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                 PINFO("Retrying the connection");
                 peer->reset();
                 peer->s = openSocket(peer->host);
-                if (peer->s) {
-                    // Try to log in now.  Send a PING immediately after so we
-                    // can get a fast estimate of latency.
+                SX509* x509;
+
+                x509 = SX509Open();
+                
+                peer->ssl = SSSLOpen(peer->s->s, x509);
+
+                if (peer->ssl) {
+                    SDEBUG("SSL object for peer client created"); 
                     SData login("NODE_LOGIN");
                     login["Name"] = name;
-                    peer->s->send(login.serialize());
+                    std::string serialized;
+                    serialized = login.serialize();
+                    // int SSSLSend(SSSLState* sslState, const char* buffer, int length) {
+                    // for call to ‘SSSLSend(SSSLState*&, std::string&, int)’
+                    SSSLSend(peer->ssl, serialized.c_str(),static_cast<int>(serialized.length()));
                     _sendPING(peer);
                     _onConnect(peer);
+
                 } else {
-                    // Failed to open -- try again later
-                    SWARN("Failed to open socket '" << peer->host << "', trying again in 60s");
-                    peer->failedConnections++;
-                    peer->nextReconnect = STimeNow() + STIME_US_PER_M;
+                        
+                    if (peer->s) {
+                        // Try to log in now.  Send a PING immediately after so we
+                        // can get a fast estimate of latency.
+                        SData login("NODE_LOGIN");
+                        login["Name"] = name;
+                        peer->s->send(login.serialize());
+                        _sendPING(peer);
+                        _onConnect(peer);
+                    } else {
+                        // Failed to open -- try again later
+                        SWARN("Failed to open socket '" << peer->host << "', trying again in 60s");
+                        peer->failedConnections++;
+                        peer->nextReconnect = STimeNow() + STIME_US_PER_M;
+                    }
                 }
             } else {
                 // Waiting to reconnect -- notify the caller

@@ -10,7 +10,6 @@ void STCPManager::prePoll(fd_map& fdm) {
     // Add all the sockets
     for (Socket* socket : socketList) {
         // Make sure it's not closed
-        SDEBUG("Prepoll " << socket->state << " SSL? " << socket->ssl);
         if (socket->state.load() != Socket::CLOSED) {
             // Check and see if it looks like we're still valid.
             if (socket->s < 0) {

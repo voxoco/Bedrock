@@ -23,6 +23,8 @@ struct STCPNode : public STCPServer {
         uint64_t id;
         int failedConnections;
 
+         
+
         // Helper methods
         Peer(const string& name_, const string& host_, const STable& params_, uint64_t id_)
           : name(name_), host(host_), params(params_), latency(0), nextReconnect(0), id(id_),
@@ -44,6 +46,8 @@ struct STCPNode : public STCPServer {
 
       private:
         Socket* s;
+        mbedtls_net_context tls;
+        SSSLState* ssl;
         recursive_mutex socketMutex;
     };
 
