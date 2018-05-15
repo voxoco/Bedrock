@@ -92,6 +92,7 @@ void SHTTPSManager::postPoll(fd_map& fdm, uint64_t& nextActivity, list<SHTTPSMan
         list<Transaction*>::iterator activeIt = nextIt++;
         Transaction* active = *activeIt;
         uint64_t elapsed = now - active->created;
+        SDEBUG("postPoll recv buffer " << active->s->recvBuffer);
         int size = active->fullResponse.deserialize(active->s->recvBuffer);
         if (size) {
             // Consume how much we read.

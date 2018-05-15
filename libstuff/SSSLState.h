@@ -17,6 +17,7 @@ struct SSSLState {
 
 // SSL helpers
 extern SSSLState* SSSLOpen(int s, SX509* x509);
+int SSSLHandshake(SSSLState* ssl);
 extern int SSSLSend(SSSLState* ssl, const char* buffer, int length);
 extern int SSSLSend(SSSLState* ssl, const string& buffer);
 extern bool SSSLSendConsume(SSSLState* ssl, string& sendBuffer);

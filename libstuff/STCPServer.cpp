@@ -1,4 +1,6 @@
 #include "libstuff.h"
+#include "SSSLState.h"
+
 #include <mbedtls/certs.h>
 
 STCPServer::STCPServer(const string& host) {
@@ -69,73 +71,52 @@ STCPManager::Socket* STCPServer::acceptSocket(Port*& portOut) {
 
         //unsigned int ip = inet_addr(domain.c_str());
 
-        // int ret, len;
-        mbedtls_net_context listen_fd, client_fd;
-        // unsigned char buf[1024];
-        const char *pers = "ssl_server";
-
-        mbedtls_entropy_context entropy;
-        mbedtls_ctr_drbg_context ctr_drbg;
-        mbedtls_ssl_context ssl;
-        mbedtls_ssl_config conf;
-        mbedtls_x509_crt srvcert;
-        mbedtls_pk_context pkey;
-
-
-        mbedtls_net_init( &listen_fd );
-        mbedtls_net_init( &client_fd );
-        mbedtls_ssl_init( &ssl );
-        mbedtls_ssl_config_init( &conf );
-
-        mbedtls_x509_crt_init( &srvcert );
-        mbedtls_pk_init( &pkey );
-        mbedtls_entropy_init( &entropy );
-        mbedtls_ctr_drbg_init( &ctr_drbg );
-
-        mbedtls_x509_crt_parse( &srvcert, (const unsigned char *) mbedtls_test_srv_crt,
-                          mbedtls_test_srv_crt_len );
-        mbedtls_x509_crt_parse( &srvcert, (const unsigned char *) mbedtls_test_cas_pem,
-                          mbedtls_test_cas_pem_len );
-        mbedtls_pk_parse_key( &pkey, (const unsigned char *) mbedtls_test_srv_key,
-                         mbedtls_test_srv_key_len, NULL, 0 );
-
-        mbedtls_net_bind( &listen_fd, NULL, std::to_string(listenport).c_str(), MBEDTLS_NET_PROTO_TCP );
-        mbedtls_ctr_drbg_seed( &ctr_drbg, mbedtls_entropy_func, &entropy,
-                               (const unsigned char *) pers,
-                               strlen( pers ) );
-        mbedtls_ssl_config_defaults( &conf,
-                    MBEDTLS_SSL_IS_SERVER,
-                    MBEDTLS_SSL_TRANSPORT_STREAM,
-                    MBEDTLS_SSL_PRESET_DEFAULT );
-        mbedtls_ssl_conf_rng( &conf, mbedtls_ctr_drbg_random, &ctr_drbg );  
-
-        mbedtls_ssl_conf_ca_chain( &conf, srvcert.next, NULL );
-        mbedtls_ssl_conf_own_cert( &conf, &srvcert, &pkey );
-        mbedtls_ssl_setup( &ssl, &conf );
-
-        int s = mbedtls_net_accept( &listen_fd, &client_fd,
-                                    NULL, 0, NULL );
-        mbedtls_ssl_set_bio( &ssl, &client_fd, mbedtls_net_send, mbedtls_net_recv, NULL );
-        mbedtls_ssl_handshake( &ssl );
+        int s = S_accept(port.s, addr, false);
 
         
-
-        
-
-
-        // int s = S_accept(port.s, addr, false);
+            
         if (s > 0) {
-            // Received a socket, wrap
-            SDEBUG("Accepting socket from '" << addr << "' on port '" << port.host << "'");
-            socket = new Socket(s, Socket::CONNECTED);
-            socket->addr = addr;
-            socketList.push_back(socket);
+            if (listenport == 8810 || listenport == 8820 || listenport == 8830) {
 
-            // Try to read immediately
-            S_recvappend(socket->s, socket->recvBuffer);
+                socket = new Socket(s, Socket::CONNECTED);
 
-            // Record what port it was accepted on
-            portOut = &port;
+                SX509* x509;
+
+                x509 = SX509Open();
+
+                socket->ssl = SSSLOpen(s, x509);
+                SDEBUG("SSL object for peer client created"); 
+
+                SDEBUG("Accepting socket from '" << addr << "' on port '" << port.host << "'");
+
+
+                int ret;
+                ret = SSSLHandshake(socket->ssl);
+                SDEBUG("Server handshake returned " << ret);
+                
+                socket->addr = addr;
+                socketList.push_back(socket);
+
+                // Try to read immediately
+                //S_recvappend(socket->s, socket->recvBuffer);
+                SSSLRecvAppend(socket->ssl, socket->recvBuffer);
+
+                // Record what port it was accepted on
+                portOut = &port;
+                
+            } else {
+                // Received a socket, wrap
+                SDEBUG("Accepting socket from '" << addr << "' on port '" << port.host << "'");
+                socket = new Socket(s, Socket::CONNECTED);
+                socket->addr = addr;
+                socketList.push_back(socket);
+
+                // Try to read immediately
+                S_recvappend(socket->s, socket->recvBuffer);
+
+                // Record what port it was accepted on
+                portOut = &port;
+            }
         }
     }
 

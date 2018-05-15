@@ -239,22 +239,27 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                 SX509* x509;
 
                 x509 = SX509Open();
-                
                 peer->ssl = SSSLOpen(peer->s->s, x509);
 
-                if (peer->ssl) {
+                int ret;
+                ret = SSSLHandshake(peer->ssl);
+                SDEBUG("Client side handshake returned " << ret);
+                SDEBUG("Tried to Open SSL client side " << peer->ssl);
+
+                if (peer->s) {
                     SDEBUG("SSL object for peer client created"); 
                     SData login("NODE_LOGIN");
                     login["Name"] = name;
                     std::string serialized;
                     serialized = login.serialize();
+                    SDEBUG("SENDING NODE LOGIN " << serialized);
                     // int SSSLSend(SSSLState* sslState, const char* buffer, int length) {
                     // for call to ‘SSSLSend(SSSLState*&, std::string&, int)’
                     SSSLSend(peer->ssl, serialized.c_str(),static_cast<int>(serialized.length()));
                     _sendPING(peer);
                     _onConnect(peer);
 
-                } else {
+                } /* else {
                         
                     if (peer->s) {
                         // Try to log in now.  Send a PING immediately after so we
@@ -270,7 +275,8 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                         peer->failedConnections++;
                         peer->nextReconnect = STimeNow() + STIME_US_PER_M;
                     }
-                }
+                    
+                } */
             } else {
                 // Waiting to reconnect -- notify the caller
                 nextActivity = min(nextActivity, peer->nextReconnect);

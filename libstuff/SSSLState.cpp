@@ -40,6 +40,33 @@ SSSLState* SSSLOpen(int s, SX509* x509) {
     return state;
 }
 
+
+
+// --------------------------------------------------------------------------
+int SSSLHandshake(SSSLState* state) {
+    int ret;
+    while( ( ret = mbedtls_ssl_handshake( &state->ssl ) ) != 0 )
+    {
+        if( ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE )
+        {
+            char error_buf[200];
+            S_TLSError(ret, error_buf);
+            SDEBUG( "HANDSHAKE failed\n  ! mbedtls_ssl_handshake returned " << error_buf << " code " << ret );
+            break;
+        }
+    }
+    if(ret > 0) {
+        SDEBUG("Handshake returning positive result");
+        return mbedtls_ssl_get_verify_result( &state->ssl );
+    } else {
+        SDEBUG("Handshake failed");
+        return ret;
+    }
+    
+
+
+}
+
 // --------------------------------------------------------------------------
 int SSSLSend(SSSLState* sslState, const char* buffer, int length) {
     // Send as much as possible and report what happened
@@ -194,6 +221,7 @@ bool SSSLRecvAppend(SSSLState* ssl, string& recvBuffer) {
         // Got some more data
         recvBuffer.append(buffer, numRecv);
         totalRecv += numRecv;
+        SDEBUG("RECEIVED SSL bytes " << numRecv);
     }
 
     // Return whether or not the socket is still alive
