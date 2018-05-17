@@ -1,7 +1,21 @@
 
 #include "libstuff.h"
+#include "SSSLState.h"
 #include <execinfo.h> // for backtrace
+#include <mbedtls/error.h>
+#include <mbedtls/net.h>
+
+
+#if !defined(MBEDTLS_CONFIG_FILE)
+#include "mbedtls/config.h"
+#else
+#include MBEDTLS_CONFIG_FILE
+#endif
+#include "mbedtls/debug.h"
+#include "mbedtls/ssl.h"
+#include "mbedtls/ssl_internal.h"
 #include <mbedtls/certs.h>
+
 
 #undef SLOGPREFIX
 #define SLOGPREFIX "{" << name << "} "
@@ -139,6 +153,7 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
         // See if we're connected
         if (peer->s) {
             // We have a socket; process based on its state
+            SDEBUG("Node Socket Process Loop ");
             switch (peer->s->state.load()) {
             case Socket::CONNECTED: {
                 // See if there is anything new.
@@ -185,7 +200,8 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                             SINFO("Received PONG from peer '" << peer->name << "' (" << peer->latency/1000 << "ms latency)");
                         } else {
                             // Not a PING or PONG; pass to the child class
-                            _onMESSAGE(peer, message);
+                            //_onMESSAGE(peer, message);
+                            SDEBUG("Node Loop onMessage Suppressed ");
                         }
                     }
                 } catch (const SException& e) {
@@ -236,17 +252,52 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                 PINFO("Retrying the connection");
                 peer->reset();
                 peer->s = openSocket(peer->host);
-                SX509* x509;
 
+                // load our client certificate
+                peer->ssl = SSSLOpen(peer->s->s, nullptr);
+
+                
+
+                string domain;
+                uint16_t serverport = 0;
+                if (!SParseHost(peer->host, domain, serverport)) {
+                    STHROW("invalid host: " + peer->host);
+                }
+
+                //ssl_write_client_hello( peer->ssl );
+
+                SX509* x509 = new SX509;
                 x509 = SX509Open();
-                peer->ssl = SSSLOpen(peer->s->s, x509);
+
+
+                // Add the certificate
+                SDEBUG("ssl_conf_ca_chain");
+                mbedtls_ssl_conf_ca_chain(&peer->ssl->conf, x509->cert.next, 0);
+                SDEBUG("ssl_conf_own_cert");
+                SASSERT(mbedtls_ssl_conf_own_cert(&peer->ssl->conf, &x509->cert, &x509->pk) == 0);
+
+
+                mbedtls_x509_crt_init( &x509->cert );
+                mbedtls_ctr_drbg_init( &peer->ssl->ctr_drbg );
+                mbedtls_entropy_init( &peer->ssl->ec );
+
+
+                SDEBUG("Client SSL Net Init");
+
+                mbedtls_net_init( &peer->ssl->ctx );
+
+                SDEBUG("Client SSL Net Connect");
+
+                mbedtls_net_connect( &peer->ssl->ctx, domain.c_str(), (char *)&serverport, MBEDTLS_NET_PROTO_TCP );
+
+                SDEBUG("Client SSL Handshake");
 
                 int ret;
-                ret = SSSLHandshake(peer->ssl);
-                SDEBUG("Client side handshake returned " << ret);
+                ret = SSSLClientHandshake(peer->ssl); 
+                SDEBUG("Client side handshake returned " << SSSLError(ret));
                 SDEBUG("Tried to Open SSL client side " << peer->ssl);
 
-                if (peer->s) {
+                if (peer->s && false) {
                     SDEBUG("SSL object for peer client created"); 
                     SData login("NODE_LOGIN");
                     login["Name"] = name;

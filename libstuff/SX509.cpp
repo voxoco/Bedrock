@@ -16,17 +16,17 @@ SX509* SX509Open(const string& pem, const string& srvCrt, const string& caCrt) {
 
     // Just create a fake certificate from the PolarSSL defaults
     SX509* x509 = new SX509;
-    mbedtls_x509_crt_init(&(x509->srvcert));
+    mbedtls_x509_crt_init(&(x509->cert));
     mbedtls_pk_init(&(x509->pk));
     try {
         // Load and initialize this key
         if (mbedtls_pk_parse_key(&x509->pk, (unsigned char*)pemPtr, (int)strlen(pemPtr) + 1, NULL, 0)) {
             STHROW("parsing key");
         }
-        if (mbedtls_x509_crt_parse(&x509->srvcert, (unsigned char*)srvCrtPtr, (int)strlen(srvCrtPtr) + 1)) {
+        if (mbedtls_x509_crt_parse(&x509->cert, (unsigned char*)srvCrtPtr, (int)strlen(srvCrtPtr) + 1)) {
             STHROW("parsing server certificate");
         }
-        if (mbedtls_x509_crt_parse(&x509->srvcert, (unsigned char*)caCrtPtr, (int)strlen(caCrtPtr) + 1)) {
+        if (mbedtls_x509_crt_parse(&x509->cert, (unsigned char*)caCrtPtr, (int)strlen(caCrtPtr) + 1)) {
             STHROW("parsing CA certificate");
         }
         return x509;
@@ -41,7 +41,7 @@ SX509* SX509Open(const string& pem, const string& srvCrt, const string& caCrt) {
 // --------------------------------------------------------------------------
 void SX509Close(SX509* x509) {
     // Clean up
-    mbedtls_x509_crt_free(&x509->srvcert);
+    mbedtls_x509_crt_free(&x509->cert);
     mbedtls_pk_free(&x509->pk);
     delete x509;
 }

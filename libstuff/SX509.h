@@ -5,8 +5,9 @@
 // Wraps a X509 Cert
 struct SX509 {
     // Attributes
-    mbedtls_x509_crt srvcert;
+    mbedtls_x509_crt cert;
     mbedtls_pk_context pk;
+    
 };
 
 // X509 Certificates

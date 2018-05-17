@@ -10,6 +10,8 @@ struct SSSLState {
     mbedtls_ctr_drbg_context ctr_drbg;
     mbedtls_ssl_config conf;
     mbedtls_ssl_context ssl;
+    mbedtls_net_context ctx;
+    SX509 x509;
 
     SSSLState();
     ~SSSLState();
@@ -17,7 +19,10 @@ struct SSSLState {
 
 // SSL helpers
 extern SSSLState* SSSLOpen(int s, SX509* x509);
-int SSSLHandshake(SSSLState* ssl);
+string SSSLError(int val);
+int SSSLClientHandshake(SSSLState* state);
+int SSSLServerHandshake(SSSLState* state);
+int SSSLServerPostHandshake(SSSLState* state);
 extern int SSSLSend(SSSLState* ssl, const char* buffer, int length);
 extern int SSSLSend(SSSLState* ssl, const string& buffer);
 extern bool SSSLSendConsume(SSSLState* ssl, string& sendBuffer);

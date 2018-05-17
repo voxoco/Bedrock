@@ -1548,10 +1548,6 @@ string SGUnzip (const string& content) {
 // Socket helpers
 /////////////////////////////////////////////////////////////////////////////
 
-void S_TLSError(int val, char* error_buf)
-{
-    mbedtls_strerror( val, error_buf, 200 );
-}
 
 // --------------------------------------------------------------------------
 int S_socket(const string& host, bool isTCP, bool isPort, bool isBlocking) {

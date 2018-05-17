@@ -77,7 +77,7 @@ STCPManager::Socket* STCPServer::acceptSocket(Port*& portOut) {
             
         if (s > 0) {
             if (listenport == 8810 || listenport == 8820 || listenport == 8830) {
-
+                int ret;
                 socket = new Socket(s, Socket::CONNECTED);
 
                 SX509* x509;
@@ -87,12 +87,17 @@ STCPManager::Socket* STCPServer::acceptSocket(Port*& portOut) {
                 socket->ssl = SSSLOpen(s, x509);
                 SDEBUG("SSL object for peer client created"); 
 
-                SDEBUG("Accepting socket from '" << addr << "' on port '" << port.host << "'");
+                SDEBUG("Accepting SSL socket from '" << addr << "' on port '" << port.host << "'");
 
+                ret = SSSLServerHandshake(socket->ssl);
+                SDEBUG("SERVER Handshake Loop " << SSSLError(ret));
+                
 
-                int ret;
-                ret = SSSLHandshake(socket->ssl);
-                SDEBUG("Server handshake returned " << ret);
+                SDEBUG("Server handshake Loop done -- returned " << SSSLError(ret));
+
+                if(ret>=0) {
+                    ret = SSSLServerPostHandshake(socket->ssl);
+                }
                 
                 socket->addr = addr;
                 socketList.push_back(socket);
@@ -100,6 +105,8 @@ STCPManager::Socket* STCPServer::acceptSocket(Port*& portOut) {
                 // Try to read immediately
                 //S_recvappend(socket->s, socket->recvBuffer);
                 SSSLRecvAppend(socket->ssl, socket->recvBuffer);
+
+                SDEBUG("Received " << socket->recvBuffer);
 
                 // Record what port it was accepted on
                 portOut = &port;

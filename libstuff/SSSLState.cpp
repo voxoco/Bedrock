@@ -2,6 +2,19 @@
 #include <mbedtls/error.h>
 #include <mbedtls/net.h>
 
+
+#if !defined(MBEDTLS_CONFIG_FILE)
+#include "mbedtls/config.h"
+#else
+#include MBEDTLS_CONFIG_FILE
+#endif
+
+
+#include "mbedtls/debug.h"
+#include "mbedtls/ssl.h"
+#include "mbedtls/ssl_internal.h"
+
+
 SSSLState::SSSLState() {
     mbedtls_ssl_init(&ssl);
     mbedtls_ssl_config_init(&conf);
@@ -19,51 +32,113 @@ SSSLState::~SSSLState() {
 // --------------------------------------------------------------------------
 SSSLState* SSSLOpen(int s, SX509* x509) {
     // Initialize the SSL state
+
+    mbedtls_debug_set_threshold(4);
+
     SASSERT(s >= 0);
     SSSLState* state = new SSSLState;
     state->s = s;
-
+    SDEBUG("ctr_drbg_seed");
     mbedtls_ctr_drbg_seed(&state->ctr_drbg, mbedtls_entropy_func, &state->ec, 0, 0);
+    SDEBUG("ssl_config_defaults");
     mbedtls_ssl_config_defaults(&state->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, 0);
-
+    SDEBUG("ssl_setup");
     mbedtls_ssl_setup(&state->ssl, &state->conf);
-
+    SDEBUG("ssl_conf_authmode");
     mbedtls_ssl_conf_authmode(&state->conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+    SDEBUG("ssl_conf_rng");
     mbedtls_ssl_conf_rng(&state->conf, mbedtls_ctr_drbg_random, &state->ctr_drbg);
+    SDEBUG("ssl_set_bio");
     mbedtls_ssl_set_bio(&state->ssl, &state->s, mbedtls_net_send, mbedtls_net_recv, 0);
 
     if (x509) {
         // Add the certificate
-        mbedtls_ssl_conf_ca_chain(&state->conf, x509->srvcert.next, 0);
-        SASSERT(mbedtls_ssl_conf_own_cert(&state->conf, &x509->srvcert, &x509->pk) == 0);
+        SDEBUG("ssl_conf_ca_chain");
+        mbedtls_ssl_conf_ca_chain(&state->conf, x509->cert.next, 0);
+        SDEBUG("ssl_conf_own_cert");
+        SASSERT(mbedtls_ssl_conf_own_cert(&state->conf, &x509->cert, &x509->pk) == 0);
     }
     return state;
 }
 
 
 
+string SSSLError(int val)
+{
+    char error_buf[100];
+    mbedtls_strerror( val, error_buf, 100 );
+    SDEBUG("SSSLError Parsed as " << val << ": " << error_buf);
+    return error_buf;
+}
+
 // --------------------------------------------------------------------------
-int SSSLHandshake(SSSLState* state) {
-    int ret;
-    while( ( ret = mbedtls_ssl_handshake( &state->ssl ) ) != 0 )
-    {
-        if( ret != MBEDTLS_ERR_SSL_WANT_READ && ret != MBEDTLS_ERR_SSL_WANT_WRITE )
-        {
-            char error_buf[200];
-            S_TLSError(ret, error_buf);
-            SDEBUG( "HANDSHAKE failed\n  ! mbedtls_ssl_handshake returned " << error_buf << " code " << ret );
-            break;
-        }
-    }
-    if(ret > 0) {
-        SDEBUG("Handshake returning positive result");
-        return mbedtls_ssl_get_verify_result( &state->ssl );
-    } else {
-        SDEBUG("Handshake failed");
-        return ret;
-    }
+int SSSLClientHandshake(SSSLState* state) {
+    int ret = 0;
     
 
+
+    do {
+        int ret = mbedtls_ssl_handshake_client_step( &state->ssl );
+        SDEBUG("XXXXXX CLIENT SSL Handshake Loop " << SSSLError(ret) << " STATE " << SSSLGetState(state));
+        sleep(1);
+    } while(SSSLGetState(state) != "666");
+    return ret;
+}
+
+// --------------------------------------------------------------------------
+int SSSLServerHandshake(SSSLState* state) {
+    int ret = 0;
+    do {
+        int ret = mbedtls_ssl_handshake_server_step( &state->ssl );
+        SDEBUG("XXXXXX SERVER SSL Handshake Loop " << SSSLError(ret) << " STATE " << SSSLGetState(state));
+        sleep(1);
+    } while(SSSLGetState(state) != "666");
+    return ret;
+}
+
+int SSSLServerPostHandshake(SSSLState* state) {
+    int ret, len;
+    unsigned char buf[1024];
+    SDEBUG("ssl_read post handshake");
+    do
+    {
+        len = sizeof( buf ) - 1;
+        memset( buf, 0, sizeof( buf ) );
+        ret = mbedtls_ssl_read( &state->ssl, buf, len );
+
+        if( ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE )
+            continue;
+
+        if( ret <= 0 )
+        {
+            switch( ret )
+            {
+                case MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY:
+                    SDEBUG( " connection was closed gracefully\n" );
+                    break;
+
+                case MBEDTLS_ERR_NET_CONN_RESET:
+                    SDEBUG( " connection was reset by peer\n" );
+                    break;
+
+                default:
+                    
+                    SDEBUG( "Server post handshake failed\n  ! mbedtls_ssl_handshake returned " << SSSLError(ret) );
+
+                    break;
+            }
+
+            break;
+        }
+
+        len = ret;
+        SDEBUG( "SSL bytes read " << len << " : " << buf);
+
+        if( ret > 0 )
+            break;
+    }
+    while( 1 );
+    return ret;
 
 }
 
