@@ -9,7 +9,7 @@
 #include MBEDTLS_CONFIG_FILE
 #endif
 
-
+#include "mbedtls/certs.h"
 #include "mbedtls/debug.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/ssl_internal.h"
@@ -33,11 +33,22 @@ SSSLState::~SSSLState() {
 SSSLState* SSSLOpen(int s, SX509* x509) {
     // Initialize the SSL state
 
-    mbedtls_debug_set_threshold(4);
 
     SASSERT(s >= 0);
     SSSLState* state = new SSSLState;
     state->s = s;
+
+    mbedtls_ssl_init( &state->ssl );
+    mbedtls_ssl_config_init( &state->conf );
+
+
+
+    mbedtls_ssl_conf_dbg(&state->conf, MBEDTLS_DEBUG, NULL);
+    mbedtls_debug_set_threshold(4);
+
+    mbedtls_entropy_init( &state->ec );
+    mbedtls_ctr_drbg_init( &state->ctr_drbg );
+
     SDEBUG("ctr_drbg_seed");
     mbedtls_ctr_drbg_seed(&state->ctr_drbg, mbedtls_entropy_func, &state->ec, 0, 0);
     SDEBUG("ssl_config_defaults");
@@ -45,7 +56,7 @@ SSSLState* SSSLOpen(int s, SX509* x509) {
     SDEBUG("ssl_setup");
     mbedtls_ssl_setup(&state->ssl, &state->conf);
     SDEBUG("ssl_conf_authmode");
-    mbedtls_ssl_conf_authmode(&state->conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+    mbedtls_ssl_conf_authmode(&state->conf, MBEDTLS_SSL_VERIFY_NONE);
     SDEBUG("ssl_conf_rng");
     mbedtls_ssl_conf_rng(&state->conf, mbedtls_ctr_drbg_random, &state->ctr_drbg);
     SDEBUG("ssl_set_bio");
@@ -53,15 +64,82 @@ SSSLState* SSSLOpen(int s, SX509* x509) {
 
     if (x509) {
         // Add the certificate
+
         SDEBUG("ssl_conf_ca_chain");
         mbedtls_ssl_conf_ca_chain(&state->conf, x509->cert.next, 0);
+
         SDEBUG("ssl_conf_own_cert");
         SASSERT(mbedtls_ssl_conf_own_cert(&state->conf, &x509->cert, &x509->pk) == 0);
     }
     return state;
 }
 
+SSSLState* SSSLOpenServer(int s, SX509* x509) {
+    // Initialize the SSL state
 
+
+    SASSERT(s >= 0);
+    SSSLState* state = new SSSLState;
+    state->s = s;
+
+    mbedtls_ssl_init( &state->ssl );
+    mbedtls_ssl_config_init( &state->conf );
+
+
+
+    mbedtls_ssl_conf_dbg(&state->conf, MBEDTLS_DEBUG, NULL);
+    mbedtls_debug_set_threshold(4);
+
+    mbedtls_entropy_init( &state->ec );
+    mbedtls_ctr_drbg_init( &state->ctr_drbg );
+
+    SDEBUG("ctr_drbg_seed");
+    mbedtls_ctr_drbg_seed(&state->ctr_drbg, mbedtls_entropy_func, &state->ec, 0, 0);
+    SDEBUG("ssl_config_defaults");
+    mbedtls_ssl_config_defaults(&state->conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM, 0);
+    SDEBUG("ssl_setup");
+    mbedtls_ssl_setup(&state->ssl, &state->conf);
+    SDEBUG("ssl_conf_authmode");
+    mbedtls_ssl_conf_authmode(&state->conf, MBEDTLS_SSL_VERIFY_NONE);
+    SDEBUG("ssl_conf_rng");
+    mbedtls_ssl_conf_rng(&state->conf, mbedtls_ctr_drbg_random, &state->ctr_drbg);
+    SDEBUG("ssl_set_bio");
+    mbedtls_ssl_set_bio(&state->ssl, &state->s, mbedtls_net_send, mbedtls_net_recv, 0);
+
+    if (x509) {
+        // Add the certificate
+
+        SDEBUG("ssl_conf_ca_chain");
+        mbedtls_ssl_conf_ca_chain(&state->conf, x509->cert.next, 0);
+
+        SDEBUG("ssl_conf_own_cert");
+        SASSERT(mbedtls_ssl_conf_own_cert(&state->conf, &x509->cert, &x509->pk) == 0);
+    }
+    return state;
+}
+
+void MBEDTLS_DEBUG( void *ctx, int level,
+                      const char *file, int line,
+                      const char *str )
+{
+    ((void) level);
+    switch (level) {
+        case 4:
+            SDEBUG("MBEDTLS DEBUG level " << level << " file " << file << " line " << line << " remark " << str);
+            break;
+        case 3: 
+            SDEBUG("MBEDTLS DEBUG level " << level << " file " << file << " line " << line << " remark " << str);
+            break;
+        case 2:
+            SDEBUG("MBEDTLS DEBUG level " << level << " file " << file << " line " << line << " remark " << str);
+            break;
+        case 1:
+            SWARN("MBEDTLS DEBUG level " << level << " file " << file << " line " << line << " remark " << str);
+            break;
+    }
+    
+    fflush(  (FILE *) ctx  );
+}
 
 string SSSLError(int val)
 {
@@ -74,14 +152,11 @@ string SSSLError(int val)
 // --------------------------------------------------------------------------
 int SSSLClientHandshake(SSSLState* state) {
     int ret = 0;
-    
-
-
     do {
-        int ret = mbedtls_ssl_handshake_client_step( &state->ssl );
+        int ret = mbedtls_ssl_handshake_client_step( &state->ssl ); // 
         SDEBUG("XXXXXX CLIENT SSL Handshake Loop " << SSSLError(ret) << " STATE " << SSSLGetState(state));
         sleep(1);
-    } while(SSSLGetState(state) != "666");
+    } while(SSSLGetState(state) != "666"); // SSSLGetState(MBEDTLS_SSL_HANDSHAKE_OVER));
     return ret;
 }
 
@@ -89,10 +164,10 @@ int SSSLClientHandshake(SSSLState* state) {
 int SSSLServerHandshake(SSSLState* state) {
     int ret = 0;
     do {
-        int ret = mbedtls_ssl_handshake_server_step( &state->ssl );
+        int ret = mbedtls_ssl_handshake_server_step( &state->ssl ); // 
         SDEBUG("XXXXXX SERVER SSL Handshake Loop " << SSSLError(ret) << " STATE " << SSSLGetState(state));
         sleep(1);
-    } while(SSSLGetState(state) != "666");
+    } while(SSSLGetState(state) != "666"); // MBEDTLS_SSL_HANDSHAKE_OVER);
     return ret;
 }
 

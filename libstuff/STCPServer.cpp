@@ -84,19 +84,28 @@ STCPManager::Socket* STCPServer::acceptSocket(Port*& portOut) {
 
                 x509 = SX509Open();
 
-                socket->ssl = SSSLOpen(s, x509);
+                socket->ssl = SSSLOpenServer(s, x509);
                 SDEBUG("SSL object for peer client created"); 
 
                 SDEBUG("Accepting SSL socket from '" << addr << "' on port '" << port.host << "'");
 
                 ret = SSSLServerHandshake(socket->ssl);
+
+                /*
+                do {
+                    ret = mbedtls_ssl_handshake(&socket->ssl->ssl);
+                    SDEBUG("Server SSL Handshake " << ret << " : " << SSSLError(ret));
+                    sleep(1);
+                } while(ret != 666);
+                */
+
                 SDEBUG("SERVER Handshake Loop " << SSSLError(ret));
                 
 
                 SDEBUG("Server handshake Loop done -- returned " << SSSLError(ret));
 
                 if(ret>=0) {
-                    ret = SSSLServerPostHandshake(socket->ssl);
+                    //ret = SSSLServerPostHandshake(socket->ssl);
                 }
                 
                 socket->addr = addr;
@@ -104,7 +113,7 @@ STCPManager::Socket* STCPServer::acceptSocket(Port*& portOut) {
 
                 // Try to read immediately
                 //S_recvappend(socket->s, socket->recvBuffer);
-                SSSLRecvAppend(socket->ssl, socket->recvBuffer);
+                //SSSLRecvAppend(socket->ssl, socket->recvBuffer);
 
                 SDEBUG("Received " << socket->recvBuffer);
 

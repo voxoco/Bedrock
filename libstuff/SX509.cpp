@@ -12,7 +12,9 @@ SX509* SX509Open(const string& pem, const string& srvCrt, const string& caCrt) {
     // Use either the supplied credentials, or defaults for testing
     const char* pemPtr = (pem.empty() ? mbedtls_test_srv_key : pem.c_str());
     const char* srvCrtPtr = (srvCrt.empty() ? mbedtls_test_srv_crt : srvCrt.c_str());
-    const char* caCrtPtr = (caCrt.empty() ? mbedtls_test_ca_crt : caCrt.c_str());
+    // const char* caCrtPtr = (caCrt.empty() ? mbedtls_test_ca_crt : caCrt.c_str());
+
+    const char* casCrtPtr = mbedtls_test_cas_pem;
 
     // Just create a fake certificate from the PolarSSL defaults
     SX509* x509 = new SX509;
@@ -20,15 +22,25 @@ SX509* SX509Open(const string& pem, const string& srvCrt, const string& caCrt) {
     mbedtls_pk_init(&(x509->pk));
     try {
         // Load and initialize this key
-        if (mbedtls_pk_parse_key(&x509->pk, (unsigned char*)pemPtr, (int)strlen(pemPtr) + 1, NULL, 0)) {
-            STHROW("parsing key");
-        }
+
+
         if (mbedtls_x509_crt_parse(&x509->cert, (unsigned char*)srvCrtPtr, (int)strlen(srvCrtPtr) + 1)) {
             STHROW("parsing server certificate");
         }
+
+        if ( mbedtls_x509_crt_parse(&(x509->cert), (unsigned char*)casCrtPtr, (int)strlen(casCrtPtr) + 1) ) {
+            STHROW("parsing CAs PEM Package");
+        }
+
+        if (mbedtls_pk_parse_key(&x509->pk, (unsigned char*)pemPtr, (int)strlen(pemPtr) + 1, NULL, 0)) {
+            STHROW("parsing key");
+        }
+
+        /*
         if (mbedtls_x509_crt_parse(&x509->cert, (unsigned char*)caCrtPtr, (int)strlen(caCrtPtr) + 1)) {
             STHROW("parsing CA certificate");
         }
+        */
         return x509;
     } catch (const SException& e) {
         // Failed
@@ -36,6 +48,60 @@ SX509* SX509Open(const string& pem, const string& srvCrt, const string& caCrt) {
         SX509Close(x509);
         return 0;
     }
+}
+
+
+
+SX509* SX509OpenClient() {
+    // Initialize with defaults
+    return SX509OpenClient("", "", "");
+}
+
+SX509* SX509OpenClient(const string& pem, const string& srvCrt, const string& caCrt) {
+    // Use either the supplied credentials, or defaults for testing
+    //const char* pemPtr = (pem.empty() ? mbedtls_test_cli_key : pem.c_str());
+    //const char* srvCrtPtr = (srvCrt.empty() ? mbedtls_test_cli_crt : srvCrt.c_str());
+    //const char* caCrtPtr = (caCrt.empty() ? mbedtls_test_ca_crt : caCrt.c_str());
+
+    const char* casCrtPtr = mbedtls_test_cas_pem;
+
+    // Just create a fake certificate from the PolarSSL defaults
+    SX509* x509 = new SX509;
+
+    
+
+    
+    mbedtls_x509_crt_init(&(x509->cert));
+    
+    // mbedtls_pk_init(&(x509->pk));
+
+    if (mbedtls_x509_crt_parse(&(x509->cert), (unsigned char*)casCrtPtr, (int)strlen(casCrtPtr) + 1) ) {
+        STHROW("Client Parse CAS Failed");
+    }
+
+/*
+    try {
+        
+        // Load and initialize this key
+        if (mbedtls_pk_parse_key(&x509->pk, (unsigned char*)pemPtr, (int)strlen(pemPtr) + 1, NULL, 0)) {
+            STHROW("parsing key");
+        }
+        if (mbedtls_x509_crt_parse(&x509->cert, (unsigned char*)srvCrtPtr, (int)strlen(srvCrtPtr) + 1)) {
+            STHROW("parsing server certificate");
+        }
+        
+        if (mbedtls_x509_crt_parse(&x509->cert, (unsigned char*)caCrtPtr, (int)strlen(caCrtPtr) + 1)) {
+            STHROW("parsing CA certificate");
+        }
+        
+    } catch (const SException& e) {
+        // Failed
+        SWARN("X509 creation failed while '" << e.what() << "', cancelling.");
+        SX509Close(x509);
+        return 0;
+    }
+    */
+   return x509;
 }
 
 // --------------------------------------------------------------------------

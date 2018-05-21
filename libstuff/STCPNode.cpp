@@ -253,10 +253,11 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                 peer->reset();
                 peer->s = openSocket(peer->host);
 
-                // load our client certificate
-                peer->ssl = SSSLOpen(peer->s->s, nullptr);
+                SX509* x509 = new SX509;
+                x509 = SX509OpenClient();
 
-                
+                // load our client certificate
+                peer->ssl = SSSLOpen(peer->s->s, x509);
 
                 string domain;
                 uint16_t serverport = 0;
@@ -264,22 +265,15 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                     STHROW("invalid host: " + peer->host);
                 }
 
-                //ssl_write_client_hello( peer->ssl );
+                mbedtls_ssl_set_hostname( &peer->ssl->ssl, "mbed TLS Server 1" );
 
-                SX509* x509 = new SX509;
-                x509 = SX509Open();
-
-
-                // Add the certificate
-                SDEBUG("ssl_conf_ca_chain");
-                mbedtls_ssl_conf_ca_chain(&peer->ssl->conf, x509->cert.next, 0);
-                SDEBUG("ssl_conf_own_cert");
-                SASSERT(mbedtls_ssl_conf_own_cert(&peer->ssl->conf, &x509->cert, &x509->pk) == 0);
-
-
-                mbedtls_x509_crt_init( &x509->cert );
-                mbedtls_ctr_drbg_init( &peer->ssl->ctr_drbg );
-                mbedtls_entropy_init( &peer->ssl->ec );
+                //mbedtls_ssl_config_defaults( &peer->ssl->conf,MBEDTLS_SSL_IS_CLIENT,MBEDTLS_SSL_TRANSPORT_STREAM,MBEDTLS_SSL_PRESET_DEFAULT );
+                //mbedtls_ssl_init( &peer->ssl->ssl );
+                //mbedtls_ssl_config_init( &peer->ssl->conf );
+                
+                //mbedtls_x509_crt_init( &x509->cert );
+                //mbedtls_ctr_drbg_init( &peer->ssl->ctr_drbg );
+                //mbedtls_entropy_init( &peer->ssl->ec );
 
 
                 SDEBUG("Client SSL Net Init");
@@ -293,7 +287,14 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                 SDEBUG("Client SSL Handshake");
 
                 int ret;
-                ret = SSSLClientHandshake(peer->ssl); 
+                // ret = SSSLClientHandshake(peer->ssl); 
+
+                do {
+                    ret = mbedtls_ssl_handshake(&peer->ssl->ssl);
+                    SDEBUG("Client Single SSL Handshake " << ret << " : " << SSSLError(ret));
+                    sleep(1);
+                } while(ret != 666);
+
                 SDEBUG("Client side handshake returned " << SSSLError(ret));
                 SDEBUG("Tried to Open SSL client side " << peer->ssl);
 

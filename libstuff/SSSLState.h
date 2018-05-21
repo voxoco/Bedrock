@@ -19,6 +19,11 @@ struct SSSLState {
 
 // SSL helpers
 extern SSSLState* SSSLOpen(int s, SX509* x509);
+extern SSSLState* SSSLOpenServer(int s, SX509* x509);
+void MBEDTLS_DEBUG( void *ctx, int level,
+                      const char *file, int line,
+                      const char *str );
+
 string SSSLError(int val);
 int SSSLClientHandshake(SSSLState* state);
 int SSSLServerHandshake(SSSLState* state);
