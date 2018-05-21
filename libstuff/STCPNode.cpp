@@ -293,9 +293,9 @@ void STCPNode::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                     ret = mbedtls_ssl_handshake(&peer->ssl->ssl);
                     SDEBUG("Client Single SSL Handshake " << ret << " : " << SSSLError(ret));
                     sleep(1);
-                } while(ret != 666);
+                } while(ret != 0);
 
-                SDEBUG("Client side handshake returned " << SSSLError(ret));
+                SDEBUG("Client side handshake COMPLETE returned " << SSSLError(ret));
                 SDEBUG("Tried to Open SSL client side " << peer->ssl);
 
                 if (peer->s && false) {

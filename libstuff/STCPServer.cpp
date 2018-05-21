@@ -89,17 +89,17 @@ STCPManager::Socket* STCPServer::acceptSocket(Port*& portOut) {
 
                 SDEBUG("Accepting SSL socket from '" << addr << "' on port '" << port.host << "'");
 
-                ret = SSSLServerHandshake(socket->ssl);
+                //ret = SSSLServerHandshake(socket->ssl);
 
-                /*
+                
                 do {
                     ret = mbedtls_ssl_handshake(&socket->ssl->ssl);
                     SDEBUG("Server SSL Handshake " << ret << " : " << SSSLError(ret));
                     sleep(1);
-                } while(ret != 666);
-                */
+                } while(ret != 0);
+                
 
-                SDEBUG("SERVER Handshake Loop " << SSSLError(ret));
+                SDEBUG("Server side handshake COMPLETE returned " << SSSLError(ret));
                 
 
                 SDEBUG("Server handshake Loop done -- returned " << SSSLError(ret));
