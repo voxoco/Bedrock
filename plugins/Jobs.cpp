@@ -1294,7 +1294,7 @@ bool BedrockPlugin_Jobs::_isValidSQLiteDateModifier(const string& modifier) {
     list<string> parts = SParseList(SToUpper(modifier));
     for (const string& part : parts) {
         // Simple regexp validation
-        if (SREMatch("^(\\+|-)\\d{1,3} (YEAR|MONTH|DAY|HOUR|MINUTE|SECOND)S?$", part)) {
+        if (SREMatch("^(\\+|-)\\d{1,5} (YEAR|MONTH|DAY|HOUR|MINUTE|SECOND)S?$", part)) {
             continue;
         }
         if (SREMatch("^START OF (DAY|MONTH|YEAR)$", part)) {
