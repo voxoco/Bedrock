@@ -13,3 +13,5 @@ libstuff/libstuff.d
 libstuff/libstuff.h.gch
 .idea
 bedrock.db
+bedrock.db-shm
+bedrock.db-wal

@@ -23,6 +23,7 @@
 void RetrySystem(const string& command) {
     // We might be waiting for some threads to unlink, so retry a few times
     int numRetries = 3;
+    
     SINFO("Trying to run '" << command << "' up to " << numRetries << " times...");
     while (numRetries--) {
         // Try it and see if it works
@@ -142,6 +143,7 @@ set<string> loadPlugins(SData& args) {
 /////////////////////////////////////////////////////////////////////////////
 int main(int argc, char* argv[]) {
     // Process the command line
+    
     SData args = SParseCommandLine(argc, argv);
     SLogSetType(false);
     if (args.empty()) {
