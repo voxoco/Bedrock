@@ -10,6 +10,18 @@
         "thread": "cpp",
         "bitset": "cpp",
         "ostream": "cpp",
-        "atomic": "cpp"
+        "atomic": "cpp",
+        "any": "cpp",
+        "array": "cpp",
+        "chrono": "cpp",
+        "functional": "cpp",
+        "istream": "cpp",
+        "ratio": "cpp",
+        "scoped_allocator": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "variant": "cpp",
+        "memory_resource": "cpp"
     }
 }

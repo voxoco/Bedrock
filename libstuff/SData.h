@@ -14,6 +14,7 @@ struct SData {
     string methodLine;
     STable nameValueMap;
     string content;
+    int syncType;
 
     // Constructors
     SData();

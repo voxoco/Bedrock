@@ -1608,6 +1608,15 @@ void BedrockServer::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                     // Create a command.
                     unique_ptr<BedrockCommand> command = getCommandFromPlugins(move(request));
 
+                    SINFO("Command Sync:" << command->request.syncType << " Query :" << command->request["query"]);
+
+                    if(command->request.syncType != -1)
+                    {
+                        command->writeConsistency = (SQLiteNode::ConsistencyLevel)command->request.syncType;
+                        if(command->writeConsistency == SQLiteNode::QUORUM)
+                            _lastQuorumCommandTime = STimeNow();
+                    }
+
                     if (command->writeConsistency != SQLiteNode::QUORUM
                         && _syncCommands.find(command->request.methodLine) != _syncCommands.end()) {
 
