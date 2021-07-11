@@ -245,6 +245,7 @@ int main(int argc, char* argv[]) {
              << endl;
         cout << "-maxJournalSize <#commits>  Number of commits to retain in the historical journal (default 1000000)"
              << endl;
+        cout << "-syncType <type>            Selective synchronization (QUORUM, ONE, ASYNC) " << endl;
         cout << "-synchronous    <value>     Set the PRAGMA schema.synchronous "
                 "(defaults see https://sqlite.org/pragma.html#pragma_synchronous)"
              << endl;
