@@ -7,10 +7,6 @@
 extern const char* g_MySQLVariables[MYSQL_NUM_VARIABLES][2];
 
 
-#define SC_ONE "ONE"
-#define SC_QUORUM "QUORUM"
-#define SC_ASYNC "ASYNC"
-
 /**
   * Simple convenience structure to construct MySQL packets
   */

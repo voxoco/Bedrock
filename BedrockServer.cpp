@@ -8,6 +8,8 @@
 #include <sys/time.h>
 #include <signal.h>
 
+#include<string.h>
+
 #include <bedrockVersion.h>
 #include <BedrockCore.h>
 #include <BedrockPlugin.h>
@@ -1340,6 +1342,26 @@ BedrockServer::BedrockServer(const SData& args_)
                      ref(_leaderVersion),
                      ref(_syncNodeQueuedCommands),
                      ref(*this));
+
+    // Sync 
+    _isSyncSet = args.isSet("-syncType");
+    _syncType = -1;
+    if(_isSyncSet)
+    {
+        string cmd = args["-syncType"];
+        if( strcasecmp(cmd.c_str(),SC_ONE) == 0)
+        {
+            _syncType = SQLiteNode::ONE;
+        }
+        else if(strcasecmp(cmd.c_str(),SC_ASYNC) == 0)
+        {
+            _syncType = SQLiteNode::ASYNC;
+        }
+        else if(strcasecmp(cmd.c_str(),SC_QUORUM) == 0)
+        {
+            _syncType = SQLiteNode::QUORUM;
+        }
+    }
 }
 
 BedrockServer::~BedrockServer() {
@@ -1608,14 +1630,28 @@ void BedrockServer::postPoll(fd_map& fdm, uint64_t& nextActivity) {
                     // Create a command.
                     unique_ptr<BedrockCommand> command = getCommandFromPlugins(move(request));
 
-                    SINFO("Command Sync:" << command->request.syncType << " Query :" << command->request["query"]);
-
-                    if(command->request.syncType != -1)
+                    
+                    if(_isSyncSet && command->request.methodLine.compare("QUERY"))
                     {
-                        command->writeConsistency = (SQLiteNode::ConsistencyLevel)command->request.syncType;
-                        if(command->writeConsistency == SQLiteNode::QUORUM)
-                            _lastQuorumCommandTime = STimeNow();
+                        string query = STrim(SToUpper(command->request["query"]));
+                        
+                        if(SStartsWith(query,"INSERT") || SStartsWith(query,"DELETE") || SStartsWith(query,"UPDATE"))
+                        {
+                            
+                            command->writeConsistency = (SQLiteNode::ConsistencyLevel)_syncType;
+                            if(command->writeConsistency == SQLiteNode::QUORUM)
+                                _lastQuorumCommandTime = STimeNow();
+                        }
                     }
+
+                    // SINFO("Command Sync:" << command->request.syncType << " Query :" << command->request["query"]);
+
+                    // if(command->request.syncType != -1)
+                    // {
+                    //     command->writeConsistency = (SQLiteNode::ConsistencyLevel)command->request.syncType;
+                    //     if(command->writeConsistency == SQLiteNode::QUORUM)
+                    //         _lastQuorumCommandTime = STimeNow();
+                    // }
 
                     if (command->writeConsistency != SQLiteNode::QUORUM
                         && _syncCommands.find(command->request.methodLine) != _syncCommands.end()) {

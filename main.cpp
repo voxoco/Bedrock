@@ -146,6 +146,7 @@ int main(int argc, char* argv[]) {
     
     SData args = SParseCommandLine(argc, argv);
     SLogSetType(false);
+
     if (args.empty()) {
         // It's valid to run bedrock with no parameters provided, but unusual
         // -- let's provide some help just in case
@@ -173,6 +174,7 @@ int main(int argc, char* argv[]) {
     // Disabled by default, but lets really beat it in. This way checkpointing does not need to wait on locks
     // created in this thread.
     SASSERT(sqlite3_enable_shared_cache(0) == SQLITE_OK);
+
 
     // Fork if requested
     if (args.isSet("-fork")) {

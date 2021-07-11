@@ -1,7 +1,6 @@
 #include "MySQL.h"
 
 #include <pcrecpp.h>
-#include<string.h>
 
 #include <bedrockVersion.h>
 #include <libstuff/SQResult.h>
@@ -334,28 +333,7 @@ void BedrockPlugin_MySQL::onPortRecv(STCPManager::Socket* s, SData& request) {
                 request.methodLine = "Query";
                 request["format"] = "json";
                 request["sequenceID"] = SToStr(packet.sequenceID);
-
-                request.syncType = -1;
-                int iPos = query.find(" ");
-                string cmd = query.substr(0,iPos);
-
-                
-                if( strcasecmp(cmd.c_str(),SC_ONE) == 0)
-                {
-                    request.syncType = SQLiteNode::ONE;
-                }
-                else if(strcasecmp(cmd.c_str(),SC_ASYNC) == 0)
-                {
-                    request.syncType = SQLiteNode::ASYNC;
-                }
-                else if(strcasecmp(cmd.c_str(),SC_QUORUM) == 0)
-                {
-                    request.syncType = SQLiteNode::QUORUM;
-                }
-                if(request.syncType == -1)
-                    request["query"] = query;
-                else
-                    request["query"] = query.substr(iPos+1);
+                request["query"] = query;
             }
             break;
         }
