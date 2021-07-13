@@ -143,7 +143,6 @@ set<string> loadPlugins(SData& args) {
 int main(int argc, char* argv[]) {
     // Process the command line
     SData args = SParseCommandLine(argc, argv);
-    SLogSetType(false);
     if (args.empty()) {
         // It's valid to run bedrock with no parameters provided, but unusual
         // -- let's provide some help just in case
@@ -175,7 +174,6 @@ int main(int argc, char* argv[]) {
     // Fork if requested
     if (args.isSet("-fork")) {
         // Do the fork
-        SLogSetType(true);
         int pid = fork();
         SASSERT(pid >= 0);
         if (pid > 0) {

@@ -2,7 +2,6 @@
 #include "BedrockServer.h"
 
 #include <arpa/inet.h>
-#include <iostream>
 #include <iomanip>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -1252,7 +1251,6 @@ BedrockServer::BedrockServer(const SData& args_)
 
     // Enable the requested plugins, and update our version string if required.
     list<string> pluginNameList = SParseList(args["-plugins"]);
-    cout << "Loading plugins: " << args["-plugins"];
     SINFO("Loading plugins: " << args["-plugins"]);
     vector<string> versions = {_version};
     for (string& pluginName : pluginNameList) {
